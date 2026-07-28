@@ -1,7 +1,7 @@
 # Al-Quran Hafazan System
 
-Adaptive Quran memorisation (Hifz) platform — Laravel 12 API backend + Vue 3
-PWA frontend. See [docs/](docs) for the full specification: requirements,
+Adaptive Quran memorisation (Hifz) platform — Laravel 12 API + Vue 3 PWA
+frontend. See [docs/](docs) for the full specification: requirements,
 architecture, database design, and API design.
 
 Real and working: the two core abstraction layers (AI provider, Quran
@@ -23,19 +23,26 @@ topology and `scripts/forge-deploy.sh` for the deploy script.
 ## Structure
 
 ```
-backend/    Laravel 12 API (PHP 8.4+, Sanctum, Redis, Horizon)
+app/, bootstrap/, config/, database/,   Laravel 12 (PHP 8.4+, Sanctum,
+public/, resources/, routes/, storage/, Redis, Horizon) — lives at the
+tests/, artisan, composer.json           repo root
 frontend/   Vue 3 + TypeScript + Vite PWA (Tailwind, Pinia, IndexedDB)
 docs/       Requirements, architecture, database, and API specs
 docker/     nginx config for the dockerised backend
 scripts/    Deployment scripts (Forge)
 ```
 
+Laravel lives at the repo root (not in a subdirectory) so that standard
+deploy tooling — Forge included — works against it with zero custom path
+configuration. The Vue frontend is the one subdirectory, and its production
+build lands directly in `public/` (see `frontend/vite.config.ts`).
+
 ## Running locally
 
 ### With Docker (recommended)
 
 ```bash
-cp backend/.env.example backend/.env
+cp .env.example .env
 docker compose up -d --build
 docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate --seed
@@ -47,10 +54,9 @@ docker compose exec app php artisan quran:import-tanzil
 
 ### Without Docker
 
-Backend (PHP 8.2+, Composer):
+Backend (PHP 8.2+, Composer), from the repo root:
 
 ```bash
-cd backend
 cp .env.example .env   # then switch DB_CONNECTION=sqlite if you don't have MariaDB running
 php artisan key:generate
 php artisan migrate --seed
@@ -83,12 +89,12 @@ Al Quran Cloud API, licensing/attribution requirements).
 ## AI provider
 
 The AI layer (`App\Contracts\AI\AiProviderInterface`) defaults to Claude and
-requires `ANTHROPIC_API_KEY` in `backend/.env` to make real calls. Without a
-key, `POST /api/v1/surahs/{s}/ayat/{a}/evaluate-recitation` returns `503`
-and the PWA's Recall step falls back to manual self-assessment automatically
-— no key is required to use the app, only to get AI-scored recitation
-feedback. OpenAI, Gemini, Azure OpenAI, and Ollama adapters exist behind the
-same interface but are stubs — see `docs/02-system-architecture.md`.
+requires `ANTHROPIC_API_KEY` in `.env` to make real calls. Without a key,
+`POST /api/v1/surahs/{s}/ayat/{a}/evaluate-recitation` returns `503` and the
+PWA's Recall step falls back to manual self-assessment automatically — no
+key is required to use the app, only to get AI-scored recitation feedback.
+OpenAI, Gemini, Azure OpenAI, and Ollama adapters exist behind the same
+interface but are stubs — see `docs/02-system-architecture.md`.
 
 Recitation capture uses the browser's Web Speech API (client-side,
 Chrome-family browsers have the best Arabic support) — no audio is uploaded

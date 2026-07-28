@@ -115,7 +115,7 @@ erDiagram
 
 ## 2. Table Definitions
 
-See migration source under `backend/database/migrations/` for exact column
+See migration source under `database/migrations/` for exact column
 types/constraints. Summary:
 
 - **`roles`** / **`role_user`** — many-to-many, so a user can hold multiple

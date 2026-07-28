@@ -12,7 +12,7 @@ flowchart LR
         PWA --- SW
     end
 
-    subgraph Backend["Laravel 12 API (backend/)"]
+    subgraph Backend["Laravel 12 API (repo root)"]
         API[REST API v1]
         Auth[Sanctum\ncookie-based SPA auth]
         AIIface["AiProviderInterface"]
@@ -52,8 +52,10 @@ flowchart LR
 
 ## 2. Component Breakdown
 
-- **`backend/`** — Laravel 12 API-only application. Owns all business logic,
-  the AI/Quran abstraction layers, and persistence.
+- **Repo root** — Laravel 12 API-only application (`app/`, `routes/`,
+  `database/`, etc. live directly at the root, not in a subdirectory — see
+  §4). Owns all business logic, the AI/Quran abstraction layers, and
+  persistence.
 - **`frontend/`** — Vue 3 + TypeScript SPA/PWA. Talks to the backend only via
   the versioned REST API; never accesses the database or AI providers
   directly.
@@ -73,15 +75,35 @@ flowchart LR
 
 ## 4. Repository Layout Decision
 
-Separate top-level `backend/` (Laravel 12 API) and `frontend/` (Vue 3 PWA)
-rather than a Laravel-served monolith. The offline/installable PWA
-requirement (service worker scope, asset precaching, independent deploy/CDN
-hosting) fits a decoupled SPA better, and it keeps a future native/Capacitor
-build and the AI/Quran abstraction layers cleanly backend-only.
+**Laravel lives at the repo root** (`app/`, `routes/`, `database/`,
+`composer.json`, `artisan`, etc. directly at the top level); `frontend/` is
+the one subdirectory, and its production build outputs straight into
+`public/` (`frontend/vite.config.ts`, `outDir: '../public'`).
 
-**Trade-off accepted**: decoupled origins require explicit CORS +
-Sanctum stateful-domain configuration, instead of "free" same-origin cookie
-auth in a monolith. See §6.
+This wasn't the original design — the first cut put Laravel in its own
+`backend/` subdirectory, mirroring `frontend/`, for a clean visual split.
+That broke in production: Laravel Forge's Zero-Downtime Deployment (and
+most deploy tooling generally) assumes `composer.json` and the app live at
+the repository root, and generates its Nginx/PHP-FPM config, Composer/NPM
+install steps, and `.env`/`storage` symlinking against that assumption. A
+non-default "Web Directory" path was enough to break Forge's release-path
+templating in three different places (Composer install, its Commands
+feature, and the generated Nginx config itself all pointed at a phantom
+release path instead of the real active release) — a live, reproducible bug
+independent of anything in this app's own code. Moving Laravel to the root
+removed the mismatch entirely: no custom Web Directory, no custom
+scheduler/queue command paths, no per-deploy `.env` symlink workaround.
+
+**Trade-off accepted**: this makes the repo asymmetric (Laravel implicit at
+the root, frontend explicit in its own directory) rather than two visually
+parallel siblings. That's a cosmetic cost; matching what deploy tooling
+expects by default is worth more in practice than the symmetry.
+
+Local dev keeps the same decoupled-origins topology regardless (Vite dev
+server on `:5173` proxying to the Laravel dev server on `:8000`, §9) — this
+section is about where the *files* live, not how they're served locally.
+Production, by contrast, serves both from one Forge site/one origin (§10),
+which also sidesteps CORS/cross-domain Sanctum concerns entirely there.
 
 ## 5. AI Provider Abstraction
 
@@ -169,7 +191,7 @@ CSRF + session cookie via `EnsureFrontendRequestsAreStateful` middleware
 ## 9. Dev Environment (Docker Topology)
 
 See `docker-compose.yml`. Services: `app` (PHP 8.4-FPM), `nginx` (serves
-`backend/public`, port 8000), `mariadb`, `redis`, `horizon` (queue worker),
+`public/`, port 8000), `mariadb`, `redis`, `horizon` (queue worker),
 `frontend` (Vite dev server, port 5173). All on one bridge network; the
 frontend's Vite dev proxy forwards `/api` and `/sanctum` to `nginx:80` in
 dev, keeping the browser same-origin against `:5173` and sidestepping CORS
@@ -179,58 +201,51 @@ deployment).
 ## 10. Production Deployment (Forge)
 
 Live at **https://hafazan.rcaquacycle.com**, auto-deployed from GitHub
-(`sabarm67/hafazan`, `main` branch) via [Laravel Forge](https://forge.laravel.com).
+(`sabarm67/hafazan`, `main` branch) via [Laravel Forge](https://forge.laravel.com),
+using Forge's **Zero-Downtime Deployment** (clones into `releases/<id>`,
+activates by swapping a `current` symlink after a successful deploy).
 
-Unlike local dev (decoupled origins, §9), production serves the frontend and
-API from **one Forge site, one origin** — the simplest topology given a
-single domain, and it eliminates CORS/cross-domain Sanctum concerns
-entirely in production.
+Production serves the frontend and API from **one Forge site, one origin**
+— the simplest topology given a single domain, and it eliminates
+CORS/cross-domain Sanctum concerns entirely in production (local dev keeps
+the decoupled-origins topology of §9 regardless; this is a production-only
+choice).
 
 **How it works**: `frontend/vite.config.ts` sets `build.outDir` to
-`../backend/public` (with `emptyOutDir: false` so it doesn't wipe Laravel's
-own `index.php`/`.htaccess`/`favicon.ico`/`robots.txt`). The Forge deploy
-script (`scripts/forge-deploy.sh`) runs `composer install`, Laravel's
-migrate/cache commands, then `npm ci && npm run build` for the frontend, in
-that order. `routes/web.php` registers a `Route::fallback()` that serves
-the built `public/index.html` for any request `/api/*` and `/sanctum/*`
-don't already claim, so Vue Router's client-side routing works on refresh
-and deep links.
+`../public` (with `emptyOutDir: false` so it doesn't wipe Laravel's own
+`index.php`/`.htaccess`/`favicon.ico`/`robots.txt`). `scripts/forge-deploy.sh`
+runs `composer install`, `npm ci && npm run build` for the frontend, then
+Laravel's migrate/cache/optimize commands. `routes/web.php` registers a
+`Route::fallback()` that serves the built `public/index.html` for any
+request `/api/*` and `/sanctum/*` don't already claim, so Vue Router's
+client-side routing works on refresh and deep links.
 
-**Forge site configuration** (one-time setup, since the repo nests Laravel
-under `backend/` rather than at the root — this trips up several of Forge's
-defaults, which assume `composer.json` and Laravel live at the repository
-root). This site uses **Zero-Downtime Deployment**:
+Because Laravel lives at the repo root (§4), this needed **no custom Forge
+site configuration at all** beyond the standard setup:
 
 - **Repository**: `sabarm67/hafazan`, branch `main`.
-- **Web Directory**: `/backend/public` (not the default `/public`).
+- **Web Directory**: default (`/public`).
 - **Deployment Script**: paste `scripts/forge-deploy.sh`'s contents into
   the Zero-Downtime Deployment script field. ZDD already clones a fresh
-  copy into `releases/<id>` and `cd`s there before the script runs, so the
-  script does *not* `cd` to the site root or `git pull` itself.
-- **Install Composer Dependencies / Install NPM Dependencies & Build
-  Assets** — **uncheck both** in the ZDD settings. These are Forge's own
-  automatic steps and they always look for `composer.json`/`package.json`
-  at the release root; ours are in `backend/` and `frontend/`. Left
-  checked, they fail before the custom script even runs (that's the
-  `composer.json file in .../releases/000000` error this section exists to
-  head off). `scripts/forge-deploy.sh` installs both itself with the
-  correct paths.
-- **Shared/persistent files** — set these to `backend/.env` and
-  `backend/storage` (not the defaults of `.env` / `storage`), so the env
-  file and storage directory persist across releases instead of each fresh
-  release getting an empty one.
-- **Scheduler** (if used): Forge's default cron runs
-  `php artisan schedule:run` from the site root — edit it to
-  `cd /home/forge/hafazan.rcaquacycle.com/current/backend && php artisan schedule:run`
-  (`current` is ZDD's symlink to the active release).
-- **Queue worker / Horizon**: point the daemon/queue command at the nested
-  artisan under the same `current` symlink, e.g.
-  `php /home/forge/hafazan.rcaquacycle.com/current/backend/artisan queue:work`
-  (Horizon requires Redis installed on the server — Forge can provision it).
+  copy into `$FORGE_RELEASE_DIRECTORY` and its own "Linking environment
+  file" / "Linking storage directories" steps correctly target `.env` and
+  `storage/` at that same root — no manual symlinking needed.
 - **Node**: Forge's server needs Node available (NVM) for the frontend
   build step in the deploy script.
+- Scheduler and queue worker/Horizon commands (if used) can reference
+  `artisan` at its default location — no path adjustment needed.
 
-**Environment** (`backend/.env`, managed in Forge's environment editor, not
+An earlier version of this repo nested Laravel under `backend/`, which
+required exactly this kind of custom path configuration throughout — and
+triggered a Forge platform bug in the process (Zero-Downtime Deployment's
+release-path templating didn't correctly substitute the active release ID
+when a non-default Web Directory was set, leaving Composer install, the
+Commands feature, and the generated Nginx config all pointing at a phantom
+`releases/000000` instead of the real release — reproducible on a freshly
+created site, so not specific to this account). See §4 for why the layout
+changed.
+
+**Environment** (`.env`, managed in Forge's environment editor, not
 committed):
 
 | Key | Production value |

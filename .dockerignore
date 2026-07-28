@@ -1,0 +1,17 @@
+/vendor
+/node_modules
+/.env
+/.env.*
+!/.env.example
+/storage/*.key
+/database/database.sqlite
+/.git
+/.idea
+/.vscode
+
+# Build context is now the repo root (Laravel lives here directly) — these
+# aren't needed inside the PHP image.
+/frontend
+/docs
+/docker
+/scripts

@@ -40,11 +40,12 @@ export default defineConfig({
     },
   },
   build: {
-    // Production (Forge) serves frontend + API from one Laravel site — see
-    // docs/02-system-architecture.md "Production Deployment". `emptyOutDir:
-    // false` is required so this doesn't wipe Laravel's own public/index.php,
-    // .htaccess, favicon.ico, robots.txt on every build.
-    outDir: '../backend/public',
+    // Production (Forge) serves frontend + API from one Laravel site, with
+    // Laravel at the repo root — see docs/02-system-architecture.md
+    // "Production Deployment". `emptyOutDir: false` is required so this
+    // doesn't wipe Laravel's own public/index.php, .htaccess, favicon.ico,
+    // robots.txt on every build.
+    outDir: '../public',
     emptyOutDir: false,
   },
 })
