@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+/* [data-theme] is stamped on <html> by useTheme(); prefers-color-scheme is the
+   fallback for a first paint before that composable runs. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  @apply bg-white text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
+}
