@@ -39,4 +39,12 @@ export default defineConfig({
       '/sanctum': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
+  build: {
+    // Production (Forge) serves frontend + API from one Laravel site — see
+    // docs/02-system-architecture.md "Production Deployment". `emptyOutDir:
+    // false` is required so this doesn't wipe Laravel's own public/index.php,
+    // .htaccess, favicon.ico, robots.txt on every build.
+    outDir: '../backend/public',
+    emptyOutDir: false,
+  },
 })

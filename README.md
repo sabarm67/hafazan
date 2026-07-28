@@ -16,6 +16,10 @@ push notifications, and analytics dashboards are still TODOs — see
 `docs/01-requirements-analysis.md` for the phase breakdown and each stub
 file's inline comments for exactly what's pending.
 
+Live at **https://hafazan.rcaquacycle.com**, auto-deployed from `main` via
+Laravel Forge — see `docs/02-system-architecture.md` §10 for the deploy
+topology and `scripts/forge-deploy.sh` for the deploy script.
+
 ## Structure
 
 ```
@@ -23,6 +27,7 @@ backend/    Laravel 12 API (PHP 8.4+, Sanctum, Redis, Horizon)
 frontend/   Vue 3 + TypeScript + Vite PWA (Tailwind, Pinia, IndexedDB)
 docs/       Requirements, architecture, database, and API specs
 docker/     nginx config for the dockerised backend
+scripts/    Deployment scripts (Forge)
 ```
 
 ## Running locally

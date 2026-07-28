@@ -16,6 +16,19 @@
 /public/build
 /public/hot
 /public/storage
+
+# Frontend production build output (Vite's outDir points here — see
+# frontend/vite.config.ts and docs/02-system-architecture.md "Production
+# Deployment"). Forge rebuilds this on every deploy; never commit it.
+/public/assets
+/public/index.html
+/public/manifest.webmanifest
+/public/registerSW.js
+/public/sw.js
+/public/workbox-*.js
+/public/favicon.svg
+/public/icon.svg
+/public/icons.svg
 /storage/*.key
 /storage/pail
 /vendor

@@ -176,7 +176,61 @@ dev, keeping the browser same-origin against `:5173` and sidestepping CORS
 during local development (CORS config is still required for any non-proxied
 deployment).
 
-## 10. Security Considerations
+## 10. Production Deployment (Forge)
+
+Live at **https://hafazan.rcaquacycle.com**, auto-deployed from GitHub
+(`sabarm67/hafazan`, `main` branch) via [Laravel Forge](https://forge.laravel.com).
+
+Unlike local dev (decoupled origins, §9), production serves the frontend and
+API from **one Forge site, one origin** — the simplest topology given a
+single domain, and it eliminates CORS/cross-domain Sanctum concerns
+entirely in production.
+
+**How it works**: `frontend/vite.config.ts` sets `build.outDir` to
+`../backend/public` (with `emptyOutDir: false` so it doesn't wipe Laravel's
+own `index.php`/`.htaccess`/`favicon.ico`/`robots.txt`). The Forge deploy
+script (`scripts/forge-deploy.sh`) runs `composer install`, Laravel's
+migrate/cache commands, then `npm ci && npm run build` for the frontend, in
+that order. `routes/web.php` registers a `Route::fallback()` that serves
+the built `public/index.html` for any request `/api/*` and `/sanctum/*`
+don't already claim, so Vue Router's client-side routing works on refresh
+and deep links.
+
+**Forge site configuration** (one-time setup, since the repo nests Laravel
+under `backend/` rather than at the root):
+
+- **Repository**: `sabarm67/hafazan`, branch `main`.
+- **Web Directory**: `/backend/public` (not the default `/public`).
+- **Deployment Script**: paste `scripts/forge-deploy.sh`'s contents into
+  Forge's deploy script field.
+- **Scheduler** (if used): Forge's default cron runs
+  `php artisan schedule:run` from the site root — edit it to
+  `cd /home/forge/hafazan.rcaquacycle.com/backend && php artisan schedule:run`.
+- **Queue worker / Horizon**: point the daemon/queue command at the nested
+  artisan explicitly, e.g.
+  `php /home/forge/hafazan.rcaquacycle.com/backend/artisan queue:work`
+  (Horizon requires Redis installed on the server — Forge can provision it).
+- **Node**: Forge's server needs Node available (NVM) for the frontend
+  build step in the deploy script.
+
+**Environment** (`backend/.env`, managed in Forge's environment editor, not
+committed):
+
+| Key | Production value |
+|---|---|
+| `APP_URL` | `https://hafazan.rcaquacycle.com` |
+| `APP_ENV` | `production` |
+| `APP_DEBUG` | `false` |
+| `FRONTEND_URL` | `https://hafazan.rcaquacycle.com` |
+| `SANCTUM_STATEFUL_DOMAINS` | `hafazan.rcaquacycle.com` |
+| `SESSION_DOMAIN` | `hafazan.rcaquacycle.com` |
+| `DB_*` | From Forge's provisioned database |
+| `ANTHROPIC_API_KEY` | Real key — without it, AI evaluation 503s and the PWA falls back to manual self-assessment (see §5) |
+
+SSL is Forge's standard Let's Encrypt integration — not project-specific,
+no repo changes needed.
+
+## 11. Security Considerations
 
 - RBAC via the `roles` many-to-many relationship; route middleware
   authorization is a future-phase addition once role-gated endpoints exist.
