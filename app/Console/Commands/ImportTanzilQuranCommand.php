@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Surah;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
@@ -31,7 +32,17 @@ class ImportTanzilQuranCommand extends Command
         $baseUrl = config('quran.tanzil_alquran_cloud.alquran_cloud_base_url');
         $this->info("Fetching Uthmani text from {$baseUrl}/quran/quran-uthmani ...");
 
-        $response = Http::timeout(60)->get("{$baseUrl}/quran/quran-uthmani");
+        try {
+            $response = Http::connectTimeout(30)
+                ->timeout(120)
+                ->retry(3, 3000, throw: false)
+                ->get("{$baseUrl}/quran/quran-uthmani");
+        } catch (ConnectionException $e) {
+            $this->error("Could not connect to {$baseUrl} after 3 attempts: {$e->getMessage()}");
+            $this->error('If this keeps happening, check the server can reach api.alquran.cloud on port 443 — e.g. `curl -v https://api.alquran.cloud/v1/surah/1` — this may be an outbound firewall/DNS issue rather than an application bug.');
+
+            return self::FAILURE;
+        }
 
         if ($response->failed()) {
             $this->error("Request failed with status {$response->status()}.");
