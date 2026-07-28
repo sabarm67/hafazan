@@ -197,18 +197,35 @@ don't already claim, so Vue Router's client-side routing works on refresh
 and deep links.
 
 **Forge site configuration** (one-time setup, since the repo nests Laravel
-under `backend/` rather than at the root):
+under `backend/` rather than at the root — this trips up several of Forge's
+defaults, which assume `composer.json` and Laravel live at the repository
+root). This site uses **Zero-Downtime Deployment**:
 
 - **Repository**: `sabarm67/hafazan`, branch `main`.
 - **Web Directory**: `/backend/public` (not the default `/public`).
 - **Deployment Script**: paste `scripts/forge-deploy.sh`'s contents into
-  Forge's deploy script field.
+  the Zero-Downtime Deployment script field. ZDD already clones a fresh
+  copy into `releases/<id>` and `cd`s there before the script runs, so the
+  script does *not* `cd` to the site root or `git pull` itself.
+- **Install Composer Dependencies / Install NPM Dependencies & Build
+  Assets** — **uncheck both** in the ZDD settings. These are Forge's own
+  automatic steps and they always look for `composer.json`/`package.json`
+  at the release root; ours are in `backend/` and `frontend/`. Left
+  checked, they fail before the custom script even runs (that's the
+  `composer.json file in .../releases/000000` error this section exists to
+  head off). `scripts/forge-deploy.sh` installs both itself with the
+  correct paths.
+- **Shared/persistent files** — set these to `backend/.env` and
+  `backend/storage` (not the defaults of `.env` / `storage`), so the env
+  file and storage directory persist across releases instead of each fresh
+  release getting an empty one.
 - **Scheduler** (if used): Forge's default cron runs
   `php artisan schedule:run` from the site root — edit it to
-  `cd /home/forge/hafazan.rcaquacycle.com/backend && php artisan schedule:run`.
+  `cd /home/forge/hafazan.rcaquacycle.com/current/backend && php artisan schedule:run`
+  (`current` is ZDD's symlink to the active release).
 - **Queue worker / Horizon**: point the daemon/queue command at the nested
-  artisan explicitly, e.g.
-  `php /home/forge/hafazan.rcaquacycle.com/backend/artisan queue:work`
+  artisan under the same `current` symlink, e.g.
+  `php /home/forge/hafazan.rcaquacycle.com/current/backend/artisan queue:work`
   (Horizon requires Redis installed on the server — Forge can provision it).
 - **Node**: Forge's server needs Node available (NVM) for the frontend
   build step in the deploy script.
