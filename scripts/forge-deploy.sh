@@ -26,6 +26,18 @@ npm run build
 
 cd "$FORGE_RELEASE_DIRECTORY"
 
+# Forge's own "Linking storage directories" step (which runs before this
+# script) points storage/ at a shared, persistent directory outside the
+# release so logs/cache survive across deploys. On a freshly provisioned
+# site that shared directory starts empty — it doesn't have the
+# framework/{cache,sessions,testing,views} subdirectories a plain git
+# checkout gets for free via .gitignore placeholders. Recreate them
+# defensively so `artisan optimize` (specifically view:cache) doesn't fail
+# with "View path not found" on a brand-new site.
+mkdir -p storage/framework/cache/data storage/framework/sessions \
+         storage/framework/testing storage/framework/views \
+         storage/app/public storage/logs
+
 $FORGE_PHP artisan optimize
 $FORGE_PHP artisan storage:link
 $FORGE_PHP artisan migrate --force
