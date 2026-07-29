@@ -4,22 +4,33 @@ namespace App\Console\Commands;
 
 use App\Models\Surah;
 use Illuminate\Console\Command;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 
 /**
- * Populates `ayat` from the Uthmani text edition Al Quran Cloud mirrors from
- * Tanzil (`quran-uthmani`, see https://alquran.cloud/api — text sourced from
- * https://tanzil.net, both subject to their respective licence/attribution
- * terms). One bulk request returns the full Mushaf; no manual corpus
- * download is needed for this source. `SurahSeeder` must have already run.
+ * Populates `ayat` and the Malay translation from editions Al Quran Cloud
+ * mirrors from Tanzil (Uthmani text) and the Basmeih translation (see
+ * https://alquran.cloud/api — text sourced from https://tanzil.net, both
+ * subject to their respective licence/attribution terms).
+ *
+ * Both payloads are bundled at database/data/quran-uthmani.json and
+ * database/data/quran-translation-ms.json rather than fetched live from
+ * api.alquran.cloud at import/request time. They were fetched once and are
+ * static (this text doesn't change), and some hosting networks cannot reach
+ * api.alquran.cloud at all — diagnosed on production via `curl -v`: DNS
+ * resolved fine, but the TCP handshake to its IPs just hung with no
+ * response, while other HTTPS hosts (e.g. api.github.com) connected
+ * normally. That's consistent with something on api.alquran.cloud's side
+ * blocking traffic from cloud-hosting IP ranges, not a fixable server-side
+ * firewall setting. Bundling the data removes the network dependency
+ * entirely — `TanzilAlQuranCloudRepository::getTranslation()` reads the
+ * `ayah_translations` rows this command writes before ever falling back to
+ * a live HTTP call. `SurahSeeder` must have already run.
  */
 class ImportTanzilQuranCommand extends Command
 {
     protected $signature = 'quran:import-tanzil';
 
-    protected $description = 'Import Uthmani ayah text (and juz/page/ruku/hizb-quarter/sajda metadata) into the ayat table';
+    protected $description = 'Import Uthmani ayah text and the Malay translation (plus juz/page/ruku/hizb-quarter/sajda metadata) into the ayat and ayah_translations tables';
 
     public function handle(): int
     {
@@ -29,33 +40,36 @@ class ImportTanzilQuranCommand extends Command
             return self::FAILURE;
         }
 
-        $baseUrl = config('quran.tanzil_alquran_cloud.alquran_cloud_base_url');
-        $this->info("Fetching Uthmani text from {$baseUrl}/quran/quran-uthmani ...");
-
-        try {
-            $response = Http::connectTimeout(30)
-                ->timeout(120)
-                ->retry(3, 3000, throw: false)
-                ->get("{$baseUrl}/quran/quran-uthmani");
-        } catch (ConnectionException $e) {
-            $this->error("Could not connect to {$baseUrl} after 3 attempts: {$e->getMessage()}");
-            $this->error('If this keeps happening, check the server can reach api.alquran.cloud on port 443 — e.g. `curl -v https://api.alquran.cloud/v1/surah/1` — this may be an outbound firewall/DNS issue rather than an application bug.');
-
+        if (! $this->importAyat()) {
             return self::FAILURE;
         }
 
-        if ($response->failed()) {
-            $this->error("Request failed with status {$response->status()}.");
-
+        if (! $this->importTranslations()) {
             return self::FAILURE;
         }
 
-        $surahsPayload = $response->json('data.surahs', []);
+        return self::SUCCESS;
+    }
+
+    private function importAyat(): bool
+    {
+        $path = database_path('data/quran-uthmani.json');
+
+        if (! is_file($path)) {
+            $this->error("Bundled corpus not found at {$path}.");
+
+            return false;
+        }
+
+        $this->info("Reading Uthmani text from {$path} ...");
+
+        $payload = json_decode(file_get_contents($path), true);
+        $surahsPayload = $payload['data']['surahs'] ?? [];
 
         if (empty($surahsPayload)) {
-            $this->error('Response did not contain any surah data.');
+            $this->error('Bundled corpus did not contain any surah data.');
 
-            return self::FAILURE;
+            return false;
         }
 
         $surahIdsByNumber = Surah::pluck('id', 'number');
@@ -73,7 +87,7 @@ class ImportTanzilQuranCommand extends Command
                 continue;
             }
 
-            $rows = array_map(function (array $ayah) use ($surahId, $surahNumber, $now) {
+            $rows = array_map(function (array $ayah) use ($surahId, $now) {
                 // The API's "hizbQuarter" is the quarter-hizb index (1-240),
                 // the granularity actually marked in most printed Mushaf
                 // margins — stored here as-is, not collapsed to whole hizb (1-60).
@@ -107,6 +121,71 @@ class ImportTanzilQuranCommand extends Command
         $total = DB::table('ayat')->count();
         $this->info("Done. {$total} ayat in the database (expected 6236).");
 
-        return self::SUCCESS;
+        return true;
+    }
+
+    private function importTranslations(): bool
+    {
+        $path = database_path('data/quran-translation-ms.json');
+
+        if (! is_file($path)) {
+            $this->error("Bundled translation not found at {$path}.");
+
+            return false;
+        }
+
+        $this->info("Reading Malay translation from {$path} ...");
+
+        $payload = json_decode(file_get_contents($path), true);
+        $surahsPayload = $payload['data']['surahs'] ?? [];
+
+        if (empty($surahsPayload)) {
+            $this->error('Bundled translation did not contain any surah data.');
+
+            return false;
+        }
+
+        $ayahIdsByNumberInQuran = DB::table('ayat')->pluck('id', 'number_in_quran');
+        $now = now();
+        $bar = $this->output->createProgressBar(count($surahsPayload));
+
+        foreach ($surahsPayload as $surahPayload) {
+            $rows = [];
+
+            foreach ($surahPayload['ayahs'] as $ayah) {
+                $ayahId = $ayahIdsByNumberInQuran[$ayah['number']] ?? null;
+
+                if ($ayahId === null) {
+                    continue;
+                }
+
+                $rows[] = [
+                    'ayah_id' => $ayahId,
+                    'locale' => 'ms',
+                    'translation_text' => $ayah['text'],
+                    'source' => 'alquran.cloud (ms.basmeih)',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+
+            if ($rows !== []) {
+                DB::table('ayah_translations')->upsert(
+                    $rows,
+                    ['ayah_id', 'locale'],
+                    ['translation_text', 'source', 'updated_at']
+                );
+            }
+
+            $bar->advance();
+        }
+
+        $bar->finish();
+        $this->newLine();
+
+        $total = DB::table('ayah_translations')->where('locale', 'ms')->count();
+        $this->info("Done. {$total} Malay translations in the database (expected 6236).");
+
+        return true;
     }
 }

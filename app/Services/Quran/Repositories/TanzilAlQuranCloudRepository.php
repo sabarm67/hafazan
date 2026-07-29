@@ -19,8 +19,14 @@ use Illuminate\Support\Facades\Http;
  *   `surahs`/`ayat` tables, seeded once via `php artisan quran:import-tanzil`.
  *   Tanzil distributes its verified corpus as a download, not a live API, so
  *   there is no HTTP call to make here.
- * - Translations + audio: real HTTP calls to the Al Quran Cloud API
- *   (api.alquran.cloud), cached in Redis.
+ * - Malay translation: read from the local `ayah_translations` table, also
+ *   populated by `quran:import-tanzil` — api.alquran.cloud isn't reachable
+ *   from every hosting network (see that command's docblock), so this can't
+ *   depend on a live call either. Other locales fall back to a live,
+ *   Redis-cached HTTP call to the Al Quran Cloud API (api.alquran.cloud).
+ * - Audio: not a server-side HTTP call at all — getAudioUrl() just builds a
+ *   URL string pointing at cdn.islamic.network, which the browser fetches
+ *   directly.
  * - Word-by-word: Al Quran Cloud does not expose an official word-by-word
  *   endpoint, so this reads from the local `ayah_words` table instead. That
  *   table is intentionally left unseeded by this scaffold — populate it from
@@ -70,6 +76,23 @@ class TanzilAlQuranCloudRepository implements QuranContentRepositoryInterface
 
     public function getTranslation(int $surahNumber, int $ayahNumber, string $locale = 'ms'): string
     {
+        // Bundled locally by `php artisan quran:import-tanzil` — see that
+        // command's docblock for why (api.alquran.cloud isn't reachable
+        // from every hosting network). Only 'ms' is bundled today; other
+        // locales still fall back to the live API below.
+        if ($locale === 'ms') {
+            $ayah = Ayah::query()
+                ->whereHas('surah', fn ($q) => $q->where('number', $surahNumber))
+                ->where('number_in_surah', $ayahNumber)
+                ->first();
+
+            $translation = $ayah?->translations()->where('locale', 'ms')->value('translation_text');
+
+            if ($translation !== null) {
+                return $translation;
+            }
+        }
+
         $edition = match ($locale) {
             'ms' => 'ms.basmeih',
             'en' => 'en.sahih',
