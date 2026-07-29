@@ -56,8 +56,7 @@ watch(surahNumber, load)
         </p>
         <p
           v-if="ayah.translation_ms"
-          class="mt-1 truncate text-right text-sm text-stone-500 dark:text-stone-400"
-          :title="ayah.translation_ms"
+          class="mt-1 text-right text-sm leading-tight text-stone-500 dark:text-stone-400"
         >
           {{ ayah.translation_ms }}
         </p>
