@@ -23,6 +23,8 @@ export interface Ayah {
   ruku_number: number
   is_sajda: boolean
   audio_url: string
+  /** Only present where the backend bothered to eager-load it (surah ayat listing) — absent, not null, elsewhere. */
+  translation_ms?: string
 }
 
 export const useQuranStore = defineStore('quran', () => {

@@ -54,6 +54,13 @@ watch(surahNumber, load)
           {{ ayah.text_arabic_uthmani }}
           <span class="font-arabic-ui text-base text-stone-400">﴿{{ ayah.number_in_surah }}﴾</span>
         </p>
+        <p
+          v-if="ayah.translation_ms"
+          class="mt-1 truncate text-right text-sm text-stone-500 dark:text-stone-400"
+          :title="ayah.translation_ms"
+        >
+          {{ ayah.translation_ms }}
+        </p>
         <p v-if="ayah.is_sajda" class="mt-2 text-center text-xs text-emerald-700 dark:text-emerald-500">
           Sajdah (prostration) verse
         </p>

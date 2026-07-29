@@ -18,7 +18,10 @@ class AyahController extends Controller
         $surah = Surah::where('number', $surahNumber)->firstOrFail();
 
         return AyahResource::collection(
-            $surah->ayat()->with('surah')->orderBy('number_in_surah')->get()
+            $surah->ayat()
+                ->with(['surah', 'translations' => fn ($q) => $q->where('locale', 'ms')])
+                ->orderBy('number_in_surah')
+                ->get()
         );
     }
 
