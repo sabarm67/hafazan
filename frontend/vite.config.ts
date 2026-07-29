@@ -27,6 +27,25 @@ export default defineConfig({
         // docs/01-requirements-analysis.md, Offline Support). This is just
         // the app-shell precache so the PWA installs and boots offline.
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Amiri/Amiri Quran (index.html) are loaded from Google Fonts at
+        // runtime, not bundled — cache them so ayah text still renders in
+        // the right font offline after a first successful load.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'google-fonts-stylesheets' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: { maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
       },
     }),
   ],

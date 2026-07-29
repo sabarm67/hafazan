@@ -4,6 +4,17 @@
    fallback for a first paint before that composable runs. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+@theme {
+  /* Ayah display (large, dir="rtl" Quran text) — see index.html for the
+     Google Fonts <link>. Amiri Quran is purpose-built for Uthmani text and
+     renders the Tanzil source's waqf/sajda marks correctly; falls back to
+     the platform's own Arabic-capable font if the webfont fails to load. */
+  --font-arabic: "Amiri Quran", "Scheherazade New", Traditional Arabic, serif;
+  /* Smaller Arabic UI strings (surah names etc.) — Amiri Quran's wide
+     letterforms hurt legibility below ~24px. */
+  --font-arabic-ui: Amiri, "Scheherazade New", Traditional Arabic, serif;
+}
+
 :root {
   color-scheme: light dark;
 }

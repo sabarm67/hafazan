@@ -5,6 +5,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
     { path: '/mushaf', name: 'mushaf', component: () => import('../views/MushafView.vue') },
+    { path: '/mushaf/:number', name: 'surah-reader', component: () => import('../views/SurahReaderView.vue') },
     { path: '/session', name: 'session', component: () => import('../views/SessionView.vue') },
     { path: '/murajaah', name: 'murajaah', component: () => import('../views/MurajaahView.vue') },
     { path: '/teacher', name: 'teacher-portal', component: () => import('../views/TeacherPortalView.vue') },
