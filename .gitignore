@@ -41,9 +41,10 @@ Homestead.yaml
 /public/registerSW.js
 /public/sw.js
 /public/workbox-*.js
-/public/favicon.svg
-/public/icon.svg
-/public/icons.svg
+/public/favicon.png
+/public/icon-192.png
+/public/icon-512.png
+/public/fonts
 
 # Docker-mounted volumes are declared in docker-compose.yml, not tracked here.
 

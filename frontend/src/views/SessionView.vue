@@ -6,6 +6,7 @@ import { useQuranStore, type Ayah } from '../stores/quran'
 import { useMemorisationStore, type MemorisationRecord } from '../stores/memorisation'
 import { useSessionStore, type ReviewLogResult, type RecitationEvaluation } from '../stores/session'
 import { useSpeechRecognition } from '../composables/useSpeechRecognition'
+import { stripHiddenMarks } from '../lib/quran/displayText'
 
 const AI_CORRECT_THRESHOLD = 70
 
@@ -63,6 +64,10 @@ const selectedAyahNumber = ref<number>(1)
 const surahAyat = ref<Ayah[]>([])
 const currentAyah = ref<Ayah | null>(null)
 const record = ref<MemorisationRecord | null>(null)
+
+const displayAyahText = computed(() =>
+  currentAyah.value ? stripHiddenMarks(currentAyah.value.text_arabic_uthmani) : ''
+)
 
 async function onSurahChange() {
   if (!selectedSurah.value) return
@@ -334,7 +339,7 @@ const classificationLabel = computed(() => {
     <!-- 3. Listen -->
     <div v-else-if="step === 'listen' && currentAyah" class="space-y-4 text-center">
       <h1 class="text-2xl font-semibold">Listen</h1>
-      <p dir="rtl" class="font-arabic text-3xl leading-loose">{{ currentAyah.text_arabic_uthmani }}</p>
+      <p dir="rtl" class="font-arabic text-3xl leading-loose">{{ displayAyahText }}</p>
       <audio ref="audioEl" :src="currentAyah.audio_url" controls class="mx-auto w-full" @ended="onAudioEnded" />
       <div class="flex justify-center gap-3 text-sm">
         <button class="rounded border border-stone-300 px-3 py-1 dark:border-stone-700" @click="toggleSpeed">
@@ -352,7 +357,7 @@ const classificationLabel = computed(() => {
     <!-- 4. Repeat -->
     <div v-else-if="step === 'repeat' && currentAyah" class="space-y-4 text-center">
       <h1 class="text-2xl font-semibold">Repeat After the Reciter</h1>
-      <p dir="rtl" class="font-arabic text-3xl leading-loose">{{ currentAyah.text_arabic_uthmani }}</p>
+      <p dir="rtl" class="font-arabic text-3xl leading-loose">{{ displayAyahText }}</p>
       <audio :src="currentAyah.audio_url" controls class="mx-auto w-full" />
       <p class="text-sm text-stone-600 dark:text-stone-400">Repeated {{ repeatCount }} time(s)</p>
       <button class="rounded border border-stone-300 px-4 py-1.5 dark:border-stone-700" @click="markRepeated">
@@ -369,7 +374,7 @@ const classificationLabel = computed(() => {
     <div v-else-if="step === 'recall' && currentAyah" class="space-y-4 text-center">
       <h1 class="text-2xl font-semibold">Recite From Memory</h1>
       <div class="rounded border border-stone-300 p-6 dark:border-stone-700">
-        <p v-if="isRevealed" dir="rtl" class="font-arabic text-3xl leading-loose">{{ currentAyah.text_arabic_uthmani }}</p>
+        <p v-if="isRevealed" dir="rtl" class="font-arabic text-3xl leading-loose">{{ displayAyahText }}</p>
         <button v-else class="text-stone-500" @click="isRevealed = true">
           (Arabic text hidden — recite first, then tap to check)
         </button>
@@ -482,7 +487,7 @@ const classificationLabel = computed(() => {
     <!-- 6. Reflect -->
     <div v-else-if="step === 'reflect' && currentAyah" class="space-y-4">
       <h1 class="text-2xl font-semibold text-center">Reflection</h1>
-      <p dir="rtl" class="font-arabic text-center text-2xl leading-loose">{{ currentAyah.text_arabic_uthmani }}</p>
+      <p dir="rtl" class="font-arabic text-center text-2xl leading-loose">{{ displayAyahText }}</p>
       <p v-if="translation" class="text-center text-stone-700 dark:text-stone-300">{{ translation }}</p>
       <p v-else class="text-center text-stone-500">Loading translation…</p>
 

@@ -10,6 +10,21 @@ export interface TajweedSegment {
 }
 
 /**
+ * See displayText.ts's HIDDEN_MARKS for why — applied here, after segments
+ * are built (not before, on the raw text), so removing a character never
+ * shifts any rule's start/end index.
+ */
+const HIDDEN_MARK_CODEPOINTS = new Set([0x06ed])
+
+function stripHiddenMarksFromSegment(text: string): string {
+  let out = ''
+  for (const ch of text) {
+    if (!HIDDEN_MARK_CODEPOINTS.has(ch.codePointAt(0) ?? -1)) out += ch
+  }
+  return out
+}
+
+/**
  * Colours per rule — proposed by a contributor to the upstream data project
  * (cpfair/quran-tajweed issue #6), not a single universal industry standard
  * (schemes vary a bit between publishers/apps). Chosen because it's the
@@ -101,4 +116,6 @@ export function buildTajweedSegments(text: string, rules: TajweedRule[]): Tajwee
   if (currentText) segments.push({ text: currentText, rule: currentRule })
 
   return segments
+    .map((s) => ({ text: stripHiddenMarksFromSegment(s.text), rule: s.rule }))
+    .filter((s) => s.text !== '')
 }

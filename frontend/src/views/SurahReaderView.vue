@@ -2,7 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuranStore, type Ayah } from '../stores/quran'
-import { buildTajweedSegments, TAJWEED_COLORS, TAJWEED_RULE_LABELS } from '../lib/tajweed/tajweed'
+import { buildTajweedSegments, TAJWEED_COLORS, TAJWEED_RULE_LABELS, type TajweedRule } from '../lib/tajweed/tajweed'
+import { splitBismillah, stripHiddenMarks } from '../lib/quran/displayText'
 
 type DisplayMode = 'arabic-only' | 'arabic-translation' | 'translation-only'
 
@@ -21,8 +22,39 @@ const showTranslation = computed(() => mode.value !== 'arabic-only')
 const surahNumber = computed(() => Number(route.params.number))
 const surah = computed(() => quran.surahs.find((s) => s.number === surahNumber.value))
 
+/**
+ * Bismillah heading text for ayah 1, or null if this surah doesn't have one
+ * prefixed (At-Tawbah) or ayah 1 IS the Bismillah itself (Al-Fatihah).
+ */
+function bismillahHeading(ayah: Ayah): string | null {
+  if (ayah.number_in_surah !== 1) return null
+  const { bismillah } = splitBismillah(ayah.text_arabic_uthmani)
+  return bismillah ? stripHiddenMarks(bismillah) : null
+}
+
+/** The ayah's actual content — Bismillah prefix stripped for ayah 1 where present, with tajweed rules re-indexed to match. */
+function ayahContent(ayah: Ayah): { text: string; rules: TajweedRule[] } {
+  if (ayah.number_in_surah === 1) {
+    const { bismillah, contentStart } = splitBismillah(ayah.text_arabic_uthmani)
+    if (bismillah !== null) {
+      return {
+        text: ayah.text_arabic_uthmani.slice(contentStart),
+        rules: ayah.tajweed_rules
+          .filter((r) => r.start >= contentStart)
+          .map((r) => ({ rule: r.rule, start: r.start - contentStart, end: r.end - contentStart })),
+      }
+    }
+  }
+  return { text: ayah.text_arabic_uthmani, rules: ayah.tajweed_rules }
+}
+
 function tajweedSegments(ayah: Ayah) {
-  return buildTajweedSegments(ayah.text_arabic_uthmani, ayah.tajweed_rules)
+  const { text, rules } = ayahContent(ayah)
+  return buildTajweedSegments(text, rules)
+}
+
+function plainText(ayah: Ayah) {
+  return stripHiddenMarks(ayahContent(ayah).text)
 }
 
 async function load() {
@@ -114,35 +146,40 @@ watch(surahNumber, load)
     <p v-if="isLoading" class="text-center text-stone-500">Loading ayat…</p>
 
     <ol v-else class="space-y-4">
-      <li
-        v-for="ayah in ayat"
-        :key="ayah.id"
-        class="rounded border border-stone-200 p-4 dark:border-stone-800"
-      >
-        <p v-if="showArabic" dir="rtl" class="font-arabic text-right text-3xl leading-loose">
-          <template v-if="showTajweed">
-            <span
-              v-for="(segment, i) in tajweedSegments(ayah)"
-              :key="i"
-              :style="segment.rule ? { color: TAJWEED_COLORS[segment.rule] } : undefined"
-            >{{ segment.text }}</span>
-          </template>
-          <template v-else>{{ ayah.text_arabic_uthmani }}</template>
-          <span class="font-arabic-ui text-base text-stone-400">﴿{{ ayah.number_in_surah }}﴾</span>
-        </p>
+      <li v-for="ayah in ayat" :key="ayah.id">
         <p
-          v-if="showTranslation && ayah.translation_ms"
-          class="leading-tight"
-          :class="mode === 'arabic-translation'
-            ? 'mt-1 text-right text-sm text-stone-500 dark:text-stone-400'
-            : 'text-left text-base text-stone-700 dark:text-stone-300'"
+          v-if="showArabic && bismillahHeading(ayah)"
+          dir="rtl"
+          class="font-arabic mb-3 text-center text-2xl text-stone-500 dark:text-stone-400"
         >
-          <span v-if="mode === 'translation-only'" class="mr-1 text-xs text-stone-400">{{ ayah.number_in_surah }}.</span>
-          {{ ayah.translation_ms }}
+          {{ bismillahHeading(ayah) }}
         </p>
-        <p v-if="ayah.is_sajda" class="mt-2 text-center text-xs text-emerald-700 dark:text-emerald-500">
-          Sajdah (prostration) verse
-        </p>
+        <div class="rounded border border-stone-200 p-4 dark:border-stone-800">
+          <p v-if="showArabic" dir="rtl" class="font-arabic text-right text-3xl leading-loose">
+            <template v-if="showTajweed">
+              <span
+                v-for="(segment, i) in tajweedSegments(ayah)"
+                :key="i"
+                :style="segment.rule ? { color: TAJWEED_COLORS[segment.rule] } : undefined"
+              >{{ segment.text }}</span>
+            </template>
+            <template v-else>{{ plainText(ayah) }}</template>
+            <span class="font-arabic-ui text-base text-stone-400">﴿{{ ayah.number_in_surah }}﴾</span>
+          </p>
+          <p
+            v-if="showTranslation && ayah.translation_ms"
+            class="leading-tight"
+            :class="mode === 'arabic-translation'
+              ? 'mt-1 text-right text-sm text-stone-500 dark:text-stone-400'
+              : 'text-left text-base text-stone-700 dark:text-stone-300'"
+          >
+            <span v-if="mode === 'translation-only'" class="mr-1 text-xs text-stone-400">{{ ayah.number_in_surah }}.</span>
+            {{ ayah.translation_ms }}
+          </p>
+          <p v-if="ayah.is_sajda" class="mt-2 text-center text-xs text-emerald-700 dark:text-emerald-500">
+            Sajdah (prostration) verse
+          </p>
+        </div>
       </li>
     </ol>
   </section>

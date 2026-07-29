@@ -19,12 +19,13 @@ export default defineConfig({
         name: 'Al-Quran Hafazan System',
         short_name: 'Hafazan',
         description: 'Adaptive Quran memorisation (Hifz) platform',
-        theme_color: '#065f46',
-        background_color: '#ffffff',
+        theme_color: '#0d3626',
+        background_color: '#0d3626',
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
         ],
       },
       workbox: {
