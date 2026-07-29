@@ -220,6 +220,16 @@ Laravel's migrate/cache/optimize commands. `routes/web.php` registers a
 request `/api/*` and `/sanctum/*` don't already claim, so Vue Router's
 client-side routing works on refresh and deep links.
 
+Forge's ZDD does **not** create or activate releases automatically around
+the script — the script itself must call `$CREATE_RELEASE()` first and
+`$ACTIVATE_RELEASE()` once the new release is ready to go live (plus
+`$RESTART_QUEUES()` after activation, so queue workers pick up the new
+code). Skipping `$ACTIVATE_RELEASE()` doesn't fail the deploy — the build
+completes, "Deployment complete" prints — but the `current` symlink is
+simply never repointed at the new release, so the live site keeps serving
+whatever `current` pointed at before (nothing, on a brand-new site).
+`scripts/forge-deploy.sh` calls all three macros in the documented order.
+
 Because Laravel lives at the repo root (§4), this needed **no custom Forge
 site configuration at all** beyond the standard setup:
 
@@ -236,14 +246,18 @@ site configuration at all** beyond the standard setup:
   `artisan` at its default location — no path adjustment needed.
 
 An earlier version of this repo nested Laravel under `backend/`, which
-required exactly this kind of custom path configuration throughout — and
-triggered a Forge platform bug in the process (Zero-Downtime Deployment's
-release-path templating didn't correctly substitute the active release ID
-when a non-default Web Directory was set, leaving Composer install, the
-Commands feature, and the generated Nginx config all pointing at a phantom
-`releases/000000` instead of the real release — reproducible on a freshly
-created site, so not specific to this account). See §4 for why the layout
-changed.
+required custom Web Directory/path configuration throughout and made
+Composer install, the Commands feature, and the generated Nginx config all
+point at a phantom `releases/000000` instead of the real release. That
+looked at the time like a Forge platform bug in ZDD's release-path
+templating (it reproduced on a freshly created site too), but the true
+cause was simpler and applied regardless of Web Directory: the deploy
+script never called `$ACTIVATE_RELEASE()`, so `current` — which
+`releases/000000` is really just the unresolved initial state of — never
+got repointed at a real release on *any* deploy, custom path or not. See
+§4 for why the layout changed regardless (it was still the right call for
+keeping Forge's default Web Directory usable), and the note above this
+list for the actual fix.
 
 **Environment** (`.env`, managed in Forge's environment editor, not
 committed):

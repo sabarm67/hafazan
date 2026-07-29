@@ -2,14 +2,21 @@
 set -e
 
 # Paste this into the Forge site's Zero-Downtime Deployment "Deployment
-# Script" field. Forge has already cloned a fresh copy of the repo into
-# this release directory and cd'd into it before this script runs — do NOT
-# `cd` to the site root or `git pull` here; ZDD already did that.
+# Script" field. $CREATE_RELEASE() / $ACTIVATE_RELEASE() / $RESTART_QUEUES()
+# are Forge's ZDD macros — Forge does NOT run them for you around the
+# script; the script must call them explicitly in this order, or the new
+# release is built but `current` never gets repointed at it (see
+# https://forge.laravel.com/docs/sites/deployments). That was the actual
+# cause of `current` staying on the phantom releases/000000 forever despite
+# every deploy reporting "Deployment complete" — this script previously
+# never called $ACTIVATE_RELEASE() at all.
 #
 # Laravel lives at the repo root (composer.json, artisan, public/ etc. are
 # all here directly), so Forge's Web Directory can stay at the default
 # `/public` — no custom path config needed. The Vue frontend builds
 # straight into public/ (see frontend/vite.config.ts).
+
+$CREATE_RELEASE()
 
 cd "$FORGE_RELEASE_DIRECTORY"
 
@@ -42,7 +49,10 @@ $FORGE_PHP artisan optimize
 $FORGE_PHP artisan storage:link
 $FORGE_PHP artisan migrate --force
 
-# Forge's own ZDD activation step swaps the `current` symlink and reloads
-# PHP-FPM after this script succeeds — no need to do that here. Queue
-# workers/Horizon don't pick up new code automatically, though:
-$FORGE_PHP artisan queue:restart
+# Everything above runs against the new release before it's live. Only
+# after this point does `current` get repointed at it:
+$ACTIVATE_RELEASE()
+
+# Queue workers/Horizon keep running on the old code until restarted —
+# do this after activation so they pick up the new release.
+$RESTART_QUEUES()
