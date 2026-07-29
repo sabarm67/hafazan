@@ -21,12 +21,14 @@ class Ayah extends Model
         'ruku_number',
         'is_sajda',
         'audio_url',
+        'tajweed_rules',
     ];
 
     protected function casts(): array
     {
         return [
             'is_sajda' => 'boolean',
+            'tajweed_rules' => 'array',
         ];
     }
 

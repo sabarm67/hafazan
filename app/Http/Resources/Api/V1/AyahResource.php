@@ -21,6 +21,7 @@ class AyahResource extends JsonResource
             'ruku_number' => $this->ruku_number,
             'is_sajda' => $this->is_sajda,
             'audio_url' => $this->audioUrl(),
+            'tajweed_rules' => $this->tajweed_rules ?? [],
             'translation_ms' => $this->whenLoaded(
                 'translations',
                 fn () => $this->translations->first()?->translation_text

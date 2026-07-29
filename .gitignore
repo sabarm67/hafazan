@@ -46,3 +46,9 @@ Homestead.yaml
 /public/icons.svg
 
 # Docker-mounted volumes are declared in docker-compose.yml, not tracked here.
+
+# One-off build inputs for scripts/tajweed-build/remap.py — re-download from
+# the URLs documented in that script's docstring if regenerating
+# database/data/quran-tajweed.json (which IS committed).
+/scripts/tajweed-build/source-*
+__pycache__/

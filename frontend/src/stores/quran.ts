@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { apiFetch } from '../lib/api'
+import type { TajweedRule } from '../lib/tajweed/tajweed'
 
 export interface Surah {
   number: number
@@ -23,6 +24,7 @@ export interface Ayah {
   ruku_number: number
   is_sajda: boolean
   audio_url: string
+  tajweed_rules: TajweedRule[]
   /** Only present where the backend bothered to eager-load it (surah ayat listing) — absent, not null, elsewhere. */
   translation_ms?: string
 }

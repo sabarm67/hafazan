@@ -31,7 +31,7 @@ export default defineConfig({
         // Quran text/audio caching strategy is a future-phase concern (see
         // docs/01-requirements-analysis.md, Offline Support). This is just
         // the app-shell precache so the PWA installs and boots offline.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,ttf}'],
         // Amiri/Amiri Quran (index.html) are loaded from Google Fonts at
         // runtime, not bundled — cache them so ayah text still renders in
         // the right font offline after a first successful load.

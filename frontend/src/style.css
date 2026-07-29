@@ -4,14 +4,32 @@
    fallback for a first paint before that composable runs. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* KFGQPC Uthmanic Script HAFS — the standard printed-Mushaf typeface (King
+   Fahd Glorious Quran Printing Complex), the same one Tanzil.net itself
+   recommends pairing with its text and what most Quran apps use. Bundled
+   locally (public/fonts/) rather than loaded from a CDN — the official
+   fonts.qurancomplex.gov.sa isn't reachable from every network (same class
+   of issue diagnosed for api.alquran.cloud — see quran:import-tanzil's
+   docblock). Free to use/copy/distribute under KFGQPC's EULA (no
+   selling/modifying); see database/data/README or commit history for the
+   verification that this exact file is genuine (digitally signed, internal
+   name-table metadata matches KFGQPC's official vendor URL). */
+@font-face {
+  font-family: "KFGQPC Uthmanic Script HAFS";
+  src: url("/fonts/kfgqpc-uthmanic-script-hafs-regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
-  /* Ayah display (large, dir="rtl" Quran text) — see index.html for the
-     Google Fonts <link>. Amiri Quran is purpose-built for Uthmani text and
-     renders the Tanzil source's waqf/sajda marks correctly; falls back to
-     the platform's own Arabic-capable font if the webfont fails to load. */
-  --font-arabic: "Amiri Quran", "Scheherazade New", Traditional Arabic, serif;
-  /* Smaller Arabic UI strings (surah names etc.) — Amiri Quran's wide
-     letterforms hurt legibility below ~24px. */
+  /* Ayah display (large, dir="rtl" Quran text). Amiri Quran (Google Fonts,
+     see index.html) is the fallback if the local KFGQPC file fails to load
+     for any reason — both are purpose-built for Uthmani text and render the
+     Tanzil source's waqf/sajda marks correctly. */
+  --font-arabic: "KFGQPC Uthmanic Script HAFS", "Amiri Quran", "Scheherazade New", Traditional Arabic, serif;
+  /* Smaller Arabic UI strings (surah names etc.) — the display font's wide
+     letterforms hurt legibility below ~24px, so this stays on Amiri. */
   --font-arabic-ui: Amiri, "Scheherazade New", Traditional Arabic, serif;
 }
 
