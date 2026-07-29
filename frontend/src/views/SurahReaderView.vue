@@ -3,11 +3,14 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuranStore, type Ayah } from '../stores/quran'
 
+type DisplayMode = 'arabic-translation' | 'translation-only'
+
 const route = useRoute()
 const quran = useQuranStore()
 
 const isLoading = ref(false)
 const ayat = ref<Ayah[]>([])
+const mode = ref<DisplayMode>('arabic-translation')
 
 const surahNumber = computed(() => Number(route.params.number))
 const surah = computed(() => quran.surahs.find((s) => s.number === surahNumber.value))
@@ -42,6 +45,27 @@ watch(surahNumber, load)
       </p>
     </header>
 
+    <div class="flex justify-center gap-2 text-sm">
+      <button
+        class="rounded px-3 py-1"
+        :class="mode === 'arabic-translation'
+          ? 'bg-emerald-700 text-white'
+          : 'border border-stone-300 text-stone-600 dark:border-stone-700 dark:text-stone-400'"
+        @click="mode = 'arabic-translation'"
+      >
+        Arabic + Translation
+      </button>
+      <button
+        class="rounded px-3 py-1"
+        :class="mode === 'translation-only'
+          ? 'bg-emerald-700 text-white'
+          : 'border border-stone-300 text-stone-600 dark:border-stone-700 dark:text-stone-400'"
+        @click="mode = 'translation-only'"
+      >
+        Translation Only
+      </button>
+    </div>
+
     <p v-if="isLoading" class="text-center text-stone-500">Loading ayat…</p>
 
     <ol v-else class="space-y-4">
@@ -50,14 +74,18 @@ watch(surahNumber, load)
         :key="ayah.id"
         class="rounded border border-stone-200 p-4 dark:border-stone-800"
       >
-        <p dir="rtl" class="font-arabic text-right text-3xl leading-loose">
+        <p v-if="mode === 'arabic-translation'" dir="rtl" class="font-arabic text-right text-3xl leading-loose">
           {{ ayah.text_arabic_uthmani }}
           <span class="font-arabic-ui text-base text-stone-400">﴿{{ ayah.number_in_surah }}﴾</span>
         </p>
         <p
           v-if="ayah.translation_ms"
-          class="mt-1 text-right text-sm leading-tight text-stone-500 dark:text-stone-400"
+          class="leading-tight"
+          :class="mode === 'arabic-translation'
+            ? 'mt-1 text-right text-sm text-stone-500 dark:text-stone-400'
+            : 'text-left text-base text-stone-700 dark:text-stone-300'"
         >
+          <span v-if="mode === 'translation-only'" class="mr-1 text-xs text-stone-400">{{ ayah.number_in_surah }}.</span>
           {{ ayah.translation_ms }}
         </p>
         <p v-if="ayah.is_sajda" class="mt-2 text-center text-xs text-emerald-700 dark:text-emerald-500">
