@@ -2,14 +2,20 @@
 set -e
 
 # Paste this into the Forge site's Zero-Downtime Deployment "Deployment
-# Script" field. $CREATE_RELEASE() / $ACTIVATE_RELEASE() / $RESTART_QUEUES()
-# are Forge's ZDD macros — Forge does NOT run them for you around the
-# script; the script must call them explicitly in this order, or the new
+# Script" field. Forge does NOT create or activate releases for you around
+# the script — the CREATE_RELEASE, ACTIVATE_RELEASE, and RESTART_QUEUES
+# macros below must be called explicitly, in this order, or the new
 # release is built but `current` never gets repointed at it (see
 # https://forge.laravel.com/docs/sites/deployments). That was the actual
 # cause of `current` staying on the phantom releases/000000 forever despite
 # every deploy reporting "Deployment complete" — this script previously
-# never called $ACTIVATE_RELEASE() at all.
+# never called the activation macro at all.
+#
+# IMPORTANT: Forge substitutes these three macros via a literal, unscoped
+# text search-and-replace across the WHOLE script — including inside
+# comments. Never write out a macro's exact "$NAME()" form anywhere except
+# its real call site below, or Forge will splice generated bash into the
+# middle of a comment line and corrupt everything after it.
 #
 # Laravel lives at the repo root (composer.json, artisan, public/ etc. are
 # all here directly), so Forge's Web Directory can stay at the default
