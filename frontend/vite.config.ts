@@ -10,6 +10,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered manually via src/lib/pwa/registerServiceWorker.ts instead
+      // of the plugin's auto-injected script, so the app can surface an
+      // "update ready" state (Settings' App section) rather than updating
+      // silently with no visibility.
+      injectRegister: null,
       manifest: {
         name: 'Al-Quran Hafazan System',
         short_name: 'Hafazan',

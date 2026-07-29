@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AiEvaluationController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\LogoutController;
+use App\Http\Controllers\Api\V1\Auth\PasskeyController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\AyahController;
 use App\Http\Controllers\Api\V1\MemorisationRecordController;
@@ -28,9 +29,21 @@ Route::prefix('v1')->group(function () {
     // --- Auth (real — cookie-based Sanctum SPA auth) ---
     Route::post('/auth/register', RegisterController::class);
     Route::post('/auth/login', LoginController::class);
+
+    // Passkey/biometric login (WebAuthn, via laravel/passkeys) — guest since
+    // there's no signed-in user yet; the resident/discoverable credential
+    // means no email/username is needed to start the ceremony.
+    Route::get('/auth/passkeys/login-options', [PasskeyController::class, 'loginOptions'])->middleware('throttle:passkey');
+    Route::post('/auth/passkeys/login', [PasskeyController::class, 'login'])->middleware('throttle:passkey');
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', LogoutController::class);
         Route::get('/auth/me', fn (Request $request) => UserResource::make($request->user()->load('roles')));
+
+        Route::get('/auth/passkeys', [PasskeyController::class, 'index']);
+        Route::get('/auth/passkeys/registration-options', [PasskeyController::class, 'registrationOptions']);
+        Route::post('/auth/passkeys', [PasskeyController::class, 'register']);
+        Route::delete('/auth/passkeys/{passkey}', [PasskeyController::class, 'destroy']);
     });
 
     // --- Quran reference data (real — read-only) ---

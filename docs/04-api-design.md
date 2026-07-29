@@ -31,6 +31,23 @@ Cookie-based Sanctum SPA auth (see `docs/02-system-architecture.md §7`):
    `auth:sanctum` middleware resolves `$request->user()`.
 5. `POST /api/v1/auth/logout` — invalidates the session.
 
+**Passkey/biometric login** (WebAuthn, via `laravel/passkeys`) is additive,
+not a replacement — it ends in the exact same kind of session as steps 3–4
+above, just reached via a different ceremony:
+
+1. `GET /api/v1/auth/passkeys/login-options` (guest) — generates a WebAuthn
+   challenge, stashes it in the session, returns it to the browser.
+2. Browser runs `navigator.credentials.get(...)` (Face ID / Touch ID /
+   Windows Hello / a security key) — no email needed, since registration
+   required a discoverable/resident credential.
+3. `POST /api/v1/auth/passkeys/login` with the resulting credential —
+   verified against the stored public key, then the same
+   `Auth::guard('web')->login()` + session regenerate as password login.
+
+Registering a new passkey (from Settings, while already signed in) mirrors
+this with `GET /api/v1/auth/passkeys/registration-options` →
+`navigator.credentials.create(...)` → `POST /api/v1/auth/passkeys`.
+
 ## 4. Endpoint Catalogue
 
 ### Auth
@@ -41,6 +58,12 @@ Cookie-based Sanctum SPA auth (see `docs/02-system-architecture.md §7`):
 | POST | `/api/v1/auth/login` | — | ✅ Real |
 | POST | `/api/v1/auth/logout` | Sanctum | ✅ Real |
 | GET | `/api/v1/auth/me` | Sanctum | ✅ Real |
+| GET | `/api/v1/auth/passkeys/login-options` | — | ✅ Real — throttled (`passkey`, 10/min/IP) |
+| POST | `/api/v1/auth/passkeys/login` | — | ✅ Real — throttled (`passkey`, 10/min/IP) |
+| GET | `/api/v1/auth/passkeys` | Sanctum | ✅ Real — list the current user's passkeys |
+| GET | `/api/v1/auth/passkeys/registration-options` | Sanctum | ✅ Real |
+| POST | `/api/v1/auth/passkeys` | Sanctum | ✅ Real — register a new passkey |
+| DELETE | `/api/v1/auth/passkeys/{passkey}` | Sanctum | ✅ Real — 403 if not the owner |
 
 ### Quran reference data (read-only)
 
@@ -50,7 +73,7 @@ Cookie-based Sanctum SPA auth (see `docs/02-system-architecture.md §7`):
 | GET | `/api/v1/surahs/{number}` | — | ✅ Real |
 | GET | `/api/v1/surahs/{surahNumber}/ayat` | — | ✅ Real |
 | GET | `/api/v1/surahs/{surahNumber}/ayat/{ayahNumber}` | — | ✅ Real |
-| GET | `/api/v1/surahs/{surahNumber}/ayat/{ayahNumber}/translation` | — | ✅ Real (live Al Quran Cloud call, cached) |
+| GET | `/api/v1/surahs/{surahNumber}/ayat/{ayahNumber}/translation` | — | ✅ Real — served from the local `ayah_translations` table for `ms` (bundled by `quran:import-tanzil`); other locales fall back to a live, Redis-cached Al Quran Cloud call |
 
 ### Adaptive Hifz Engine surface
 

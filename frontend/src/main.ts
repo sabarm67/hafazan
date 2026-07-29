@@ -4,6 +4,7 @@ import './style.css'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
+import { registerAppServiceWorker } from './lib/pwa/registerServiceWorker'
 
 const app = createApp(App)
 app.use(createPinia())
@@ -16,3 +17,5 @@ const auth = useAuthStore()
 auth.fetchCurrentUser().finally(() => {
   app.mount('#app')
 })
+
+void registerAppServiceWorker()
