@@ -23,6 +23,22 @@ export function stripHiddenMarks(text: string): string {
 }
 
 const BISMILLAH = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ'
+/**
+ * NFC-normalized form, used only for the startsWith() comparison below.
+ * The hand-typed BISMILLAH constant above and the bundled Uthmani data
+ * are visually identical but weren't byte-identical — Tanzil's data
+ * orders the fatha/shadda combining marks in "لَّ"/"رَّ" as
+ * shadda-then-fatha, this literal had fatha-then-shadda. Both render the
+ * same glyph, but as raw codepoint sequences a plain startsWith() only
+ * matched Al-Fatihah's ayah 1 (which round-trips through the exact same
+ * literal representation) and silently failed for every other surah -
+ * NFC's canonical ordering (by Unicode combining class: fatha is class
+ * 30, shadda is class 33) reorders either input the same way, so this
+ * comparison is robust regardless of which order source data happens to
+ * use. Doesn't affect the .length-based slicing below - normalizing only
+ * reorders these combining marks, it doesn't change the character count.
+ */
+const BISMILLAH_NFC = BISMILLAH.normalize('NFC')
 
 export interface BismillahSplit {
   /** The Bismillah substring (with any leading BOM), or null if ayah 1 doesn't start with it, or IS just the Bismillah (Al-Fatihah). */
@@ -43,7 +59,7 @@ export function splitBismillah(text: string): BismillahSplit {
   const stripped = text.replace(/^﻿/, '')
   const bomOffset = text.length - stripped.length
 
-  if (!stripped.startsWith(BISMILLAH)) {
+  if (!stripped.normalize('NFC').startsWith(BISMILLAH_NFC)) {
     return { bismillah: null, contentStart: 0 }
   }
 
