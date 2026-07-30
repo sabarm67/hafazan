@@ -1,3 +1,5 @@
+import { HIDDEN_MARKS } from '../quran/displayText'
+
 export interface TajweedRule {
   rule: string
   start: number
@@ -14,12 +16,10 @@ export interface TajweedSegment {
  * are built (not before, on the raw text), so removing a character never
  * shifts any rule's start/end index.
  */
-const HIDDEN_MARK_CODEPOINTS = new Set([0x06ed])
-
 function stripHiddenMarksFromSegment(text: string): string {
   let out = ''
   for (const ch of text) {
-    if (!HIDDEN_MARK_CODEPOINTS.has(ch.codePointAt(0) ?? -1)) out += ch
+    if (!HIDDEN_MARKS.has(ch.codePointAt(0) ?? -1)) out += ch
   }
   return out
 }

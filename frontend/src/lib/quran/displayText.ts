@@ -5,14 +5,24 @@
  * would misalign them; see stripHiddenMarks()'s callers for how they stay
  * aligned).
  *
- * U+06ED ARABIC SMALL LOW MEEM: renders as an oversized, disconnected dot
- * with the KFGQPC Hafs font (reported by the user, positioned exactly
- * where this mark sits within a word, e.g. inside "هُدًۭى" in
- * Al-Baqarah 2) rather than the small counted-recitation mark it's meant
- * to be. Hidden rather than deleted from storage in case a future font/
- * feature can render it properly.
+ * These are Quranic annotation marks (Unicode block U+06D6-U+06ED) that a
+ * well-designed font renders as small superscript marks sitting above the
+ * preceding letter, with ~zero advance width. The KFGQPC Hafs font instead
+ * renders these six as full-size, disconnected glyphs sitting inline (e.g.
+ * an oversized black dot for U+06DF, first reported by the user in
+ * "هُدًۭى" (Al-Baqarah 2) for U+06ED, then again in At-Tawbah for U+06DF).
+ * Confirmed by measuring rendered advance width against a base letter with
+ * this exact font (canvas measureText): these six all measure 0.4-1.0x a
+ * base letter's width, while the properly-rendering marks in this same
+ * Unicode range (U+06D6-U+06DC, U+06E0-U+06E2) all measure exactly zero.
+ * U+06DD (end of ayah) never actually occurs in the bundled text (ayah
+ * boundaries are tracked separately, via number_in_surah) so isn't listed
+ * despite also rendering broken.
+ *
+ * Hidden rather than deleted from storage in case a future font renders
+ * them properly.
  */
-const HIDDEN_MARKS = new Set([0x06ed])
+export const HIDDEN_MARKS = new Set([0x06de, 0x06df, 0x06e5, 0x06e6, 0x06e9, 0x06ed])
 
 export function stripHiddenMarks(text: string): string {
   let out = ''

@@ -9,7 +9,17 @@ export default defineConfig({
     vue(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate' — the generated client
+      // (virtual:pwa-register) only fires onNeedRefresh (which
+      // src/lib/pwa/registerServiceWorker.ts uses to show the "update
+      // ready" state and drive the Settings "Refresh app" button) on the
+      // new worker's 'waiting' event, which 'autoUpdate' skips entirely —
+      // it auto-activates and reloads on its own, silently, with no hook
+      // for the app to observe. Confirmed by reading the compiled
+      // virtual:pwa-register output: under autoUpdate the 'activated'
+      // listener calls onNeedReload (never provided) or else just
+      // reloads unconditionally; onNeedRefresh is dead code in that mode.
+      registerType: 'prompt',
       // Registered manually via src/lib/pwa/registerServiceWorker.ts instead
       // of the plugin's auto-injected script, so the app can surface an
       // "update ready" state (Settings' App section) rather than updating
